@@ -1,12 +1,17 @@
 import { deleteObject, getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { FaTrash, FaUpload } from 'react-icons/fa'
 import { PuffLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
-import { storage } from '../config/firebase.config'
-import { intialTags } from '../utils/helpers'
+import { db, storage } from '../config/firebase.config'
+import { adminIds, intialTags } from '../utils/helpers'
+import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import useTemplates from '../hooks/useTemplates'
+import { useNavigate } from 'react-router-dom'
 
 const CreateTemplate = () => {
+
+  /* states */
 
   const [formData, setFormData] = useState({
     title:"",
@@ -19,6 +24,25 @@ const CreateTemplate = () => {
     progress:0
 
   })
+
+  //*states for selecting tags
+  const [selectedTags, setSelectedTags] = useState([]);
+
+  //* states using react query for getting how many templates are there in your cloud
+  const {data : templates , isError : templatesIsError , isLoading : templatesIsLoading , refetch : templatesRefetch} = useTemplates();
+
+  const {data : user , isLoading} = useUser();
+
+
+
+  const navigate = useNavigate();
+
+
+
+
+
+
+  /*  functions  */
 
   const handleInputChange = (e) => {
     const {name , value} = e.target;
@@ -108,6 +132,80 @@ const CreateTemplate = () => {
     })
   }
 
+
+  const handleSelectTags = (tag) => {
+    // check if the tag is selected or not
+    if(selectedTags.includes(tag)){
+      // if selected hai to selected se remove kar do
+      setSelectedTags(selectedTags.filter((selected) => selected !== tag)) // return every tag except the selected one 
+
+
+    }
+
+    else{
+      // we have to push that into the selected tags
+      setSelectedTags([...selectedTags , tag])
+    }
+  }
+
+
+  const pushToCloud =async () => {
+    const timestamp = serverTimestamp(); // firebase function
+    const id = `${Date.now()}`;
+    const _doc = {
+      _id:id,
+      title:formData.title,
+      imageURL : imageAsset.uri,
+      tags: selectedTags,
+      name: templates && templates.length > 0 ? `Template${templates.length+1}` : 
+      'Template1'
+    ,
+      timestamp:timestamp,
+    }
+
+    /* console.log(_doc); */
+
+    // now push this data into the cloud 
+    await setDoc(doc(db , 'templates'/* give same name which you are fetching from the api  */ , id ) , _doc).then(() => {
+      setFormData((prevData) => ({...prevData , title : "" , imageURL : "" , }));
+      setImageAsset((prevAsset) => ({...prevAsset , uri : null}));
+      setSelectedTags([]);
+      templatesRefetch();
+      toast.success("Data pushed to cloud");
+
+    }).catch(error => {
+      toast.error(`Error : ${error.message}`);
+    })
+
+  }
+
+  // function to remove the data from the cloud
+  const deleteTemplate = async (template) => {
+    const deleteRef = ref(storage , template?.imageURL);
+    await deleteObject(deleteRef)
+    .then(async () => {
+      await deleteDoc(doc(db , "templates" , template?._id))
+      .then(() => {
+        toast.success("Template Deleted successfully");
+        templatesRefetch();
+
+      })
+      .catch((err) => {
+        console.log(err);
+        toast.error(`Error : ${err.message}`);
+
+      })
+    })
+  }
+
+
+  useEffect(() => {
+    if(!isLoading && !adminIds.includes(user?.uid)){
+      navigate( '/' , {replace  :true});
+    }
+  } , [user , isLoading])
+
+
   return (
     <div className='w-full px-4 lg:px-10 2xl:px-32 py-4 grid grid-cols-1 lg:grid-cols-12'> 
 
@@ -121,7 +219,11 @@ const CreateTemplate = () => {
           {/* template id section */}
           <div className='w-full flex items-center justify-end'> 
             <p className='text-base text-txtLight uppercase font-semibold'>TEMPID:{""}</p>
-            <p className='text-sm  capitalize text-txtDark font-bold'>Template1</p>
+            <p className='text-sm  capitalize text-txtDark font-bold'>
+            {templates && templates.length > 0 ? `Template${templates.length+1}` : 
+              'Template1'
+            }
+            </p>
           </div>
 
 
@@ -183,19 +285,81 @@ const CreateTemplate = () => {
 
             {/* tags */}
 
-            <div className='w-full flex items-center flex-wrap gap-2'>
+            <div className='w-full flex items-center flex-wrap gap-2 '>
                 
-                {intialTags.map((tag , i) => {
-                  <div key={i}> {/* supplying key to prevent from warning issues */}
-                      <p>{tag}</p>
+                {intialTags.map((tag , i) => (
+                  <div key={i} onClick={() => handleSelectTags(tag)}
+                    className={`border border-gray-300 px-2 py-2 cursor-pointer rounded-md ${selectedTags.includes(tag) ? "bg-blue-500 text-white " : ""}`}
+                  > {/* supplying key to prevent from warning issues */}
+                      <p className='text-xs'>{tag}</p>
                   </div>
-                } )}
+                ))}
 
             </div>
+
+            {/* button action */}
+            <button type='button' className='w-full bg-blue-700  text-white rounded-md py-3 ' 
+              onClick={pushToCloud}
+            >
+                Save
+            </button>
+
       </div>
 
       {/* right container */}
-      <div className=' lg:col-span-8 2xl:col-span-9 bg-red-300'>2</div>
+      <div className='col-span-12 lg:col-span-8 2xl:col-span-9 bg-red-300 px-2 py-4 w-full flex-1 '>
+        {
+          templatesIsLoading ? 
+          (
+            <React.Fragment>
+              <div className='w-full h-full flex items-center justify-center'>
+                <PuffLoader color='#498FCD' size={40}/>
+              </div>
+            </React.Fragment>
+          )
+           :
+
+            (
+            <React.Fragment>
+                {
+                  templates && templates.length > 0 ? 
+                  (
+                    <React.Fragment>
+                      {
+                        <div className='w-full h-full grid grid-colS-1 lg:grid-cols-2 2xl:grid-cols-3  gap-4'>
+                          {
+                            templates?.map( (template) => (
+                          <div key={template._id} className='w-full h-[500px] rounded-md overflow-hidden realtive'>
+                            <img src={template?.imageURL} alt="" className='w-full h-full object-cover ' />
+
+                              {/* delete action */}
+                              <div className='absolute top-[136px] w-8 h-8 flex justify-center items-center rounded-md bg-red-500 cursor-pointer' onClick={() => deleteTemplate(template)}>
+                                  <FaTrash className='text-sm text-white '/>
+                             </div>
+                          </div>
+                          ))
+                          }
+
+                        </div>
+                      }
+                    </React.Fragment>
+                  ) 
+                  :
+                  (
+                    <React.Fragment>
+                        <div className='w-full h-full flex items-center justify-center'>
+                          <PuffLoader color='#498FCD' size={40}/>
+                          <p className='text-xl tracking-wider capitalize text-txtPrimary'>No data</p>
+                        </div>
+
+                    </React.Fragment>
+                  )
+                }
+            </React.Fragment>
+            )
+          
+        }
+      </div>
     </div>
   )
 }
