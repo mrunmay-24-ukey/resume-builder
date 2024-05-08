@@ -9,7 +9,7 @@ import {ReactQueryDevtools} from 'react-query/devtools';
 // toast
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import CreateTemplate from './pages/CreateTemplate'
+
 
 const App = () => {
   const queryClient = new QueryClient();

@@ -8,6 +8,7 @@ import { HiLogout } from 'react-icons/hi';
 import { auth } from '../config/firebase.config';
 import { useQueryClient } from 'react-query';
 import { adminIds } from '../utils/helpers';
+import useFilters from '../hooks/useFilters';
 
 const Header = () => {
   const { data, isLoading, isError } = useUser();
@@ -15,12 +16,18 @@ const Header = () => {
 
   const queryClient = useQueryClient();
 
+  const {data : filterData } = useFilters();
+
 
   const signOutUser = async () => {
     await auth.signOut().then(() => {
         queryClient.setQueriesData('user' , null);
 
     })
+  }
+
+  const handleSearchTerm = () => {
+    queryClient.setQueryData("globalFilter" , {...queryClient.getQueryData("globalFilter") , searchTerm:e.target.value})
   }
 
   return (
@@ -33,7 +40,7 @@ const Header = () => {
 
       {/* search bar */}
       <div className='flex-1 border border-gray-300 px-4 py-1 rounded-md flex items-center justify-between bg-gray-200'>
-        <input type="text" placeholder='Search here..' className='flex-1 h-10 bg-transparent text-base font-semibold outline-none border-none ' />
+        <input type="text" placeholder='Search here..' className='flex-1 h-10 bg-transparent text-base font-semibold outline-none border-none ' onChange={handleSearchTerm} value={filterData.searchTerm ? filterData.searchTerm : ""} />
       </div>
 
       {/* profile icon */}

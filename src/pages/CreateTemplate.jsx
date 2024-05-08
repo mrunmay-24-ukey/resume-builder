@@ -8,6 +8,7 @@ import { adminIds, intialTags } from '../utils/helpers'
 import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import useTemplates from '../hooks/useTemplates'
 import { useNavigate } from 'react-router-dom'
+import useUser from '../hooks/useUser'
 
 const CreateTemplate = () => {
 
@@ -326,7 +327,7 @@ const CreateTemplate = () => {
                   (
                     <React.Fragment>
                       {
-                        <div className='w-full h-full grid grid-colS-1 lg:grid-cols-2 2xl:grid-cols-3  gap-4'>
+                        <div className='w-full h-full grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3  gap-4'>
                           {
                             templates?.map( (template) => (
                           <div key={template._id} className='w-full h-[500px] rounded-md overflow-hidden realtive'>

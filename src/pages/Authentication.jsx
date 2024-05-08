@@ -10,7 +10,7 @@ import Spinner from '../components/Spinner'
 const Authentication = () => {
 
   // toast
-  const notify = () => toast("Wow so easy!");
+
 
 
   const {data , isLoading  , isError} = useUser();
